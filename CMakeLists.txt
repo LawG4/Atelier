@@ -9,7 +9,9 @@ endif()
 # Add executable
 add_executable(atelier WIN32
 	include/atelier/atelier.h
-	source/_application_wwinmain.cpp)
+	source/_application_wwinmain.cpp
+	source/logger.cpp
+	source/win32_window_class.cpp)
 
 target_include_directories(atelier PRIVATE 
 	${CMAKE_CURRENT_LIST_DIR}/include)
