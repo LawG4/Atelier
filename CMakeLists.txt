@@ -11,10 +11,18 @@ add_executable(atelier WIN32
 	include/atelier/atelier.h
 	source/_application_wwinmain.cpp
 	source/logger.cpp
+	source/vk_presurface.cpp
 	source/win32_window_class.cpp)
 
 target_include_directories(atelier PRIVATE 
 	${CMAKE_CURRENT_LIST_DIR}/include)
+
+# Set C++ 17
+set_target_properties(atelier PROPERTIES 
+	CXX_STANDARD 17)
+
+# Add precompiled headers 
+target_precompile_headers(atelier PRIVATE "<vector>" "<optional>")
 
 # Add vulkan to the executable
 find_package(Vulkan REQUIRED)

@@ -4,37 +4,39 @@
 #include <Windows.h>
 #include "atelier/atelier.h"
 
-LRESULT atelier_proc_function(HWND window_handle, UINT msg_id, WPARAM w_param, LPARAM l_param);
-static constexpr wchar_t main_class_name[] = L"Atelier main window class";
-
 int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _In_ PWSTR p_cmd_line,
              _In_ int n_cmd_show)
 {
+    // Logger initialization
+    Atelier::Log::init();
+
+    // Register the window classes so we can create instances of the different window types
+    if (Atelier::Window::register_window_classes(instance_handle) != Atelier::k_success) {
+        Atelier::Log::error("Failed to register window class");
+        return -1;
+    }
+
+    // Get the vulkan information as much as we can in anther thread while we initialize the win32 window
+    auto vk_pre_surface = Atelier::VkPreSurfaceInfo();
+    auto pre_surface_thread = Atelier::VkPreSurfaceInfo::kick_worker(vk_pre_surface);
+
     // A place to keep all of the information in the main thread
-    auto main_window = Atelier::MainWindow();
-    main_window.win32_app_instance = instance_handle;
-
-    // We're creating a window class
-    WNDCLASSW wc = {};
-    wc.lpszClassName = main_class_name;
-    wc.hInstance = instance_handle;
-    wc.lpfnWndProc = atelier_proc_function;
-    ATOM wc_atom = RegisterClassW(&wc);
-    if (wc_atom == 0) {
-        MessageBoxA(nullptr, "Failed to register main window class\n", "Atelier", MB_ICONERROR);
+    auto main_window = Atelier::Window();
+    if (Atelier::Window::create_main_window(&main_window, instance_handle) != Atelier::k_success) {
+        Atelier::Log::error("Failed when constructing main window");
         return -1;
     }
+    ShowWindow(main_window.window_handle, n_cmd_show);
 
-    // Lets create a win32 window!. We attach the atelier main window over to the window class as a user data
-    // pointer when constructing the data
-    main_window.win32_main_window =
-      CreateWindowExW(0, main_class_name, L"Atelier", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                      CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, instance_handle, (void*)&main_window);
-    if (main_window.win32_main_window == nullptr) {
-        MessageBoxA(nullptr, "Failed to create a main window \n", "Atelier", MB_ICONERROR);
-        return -1;
-    }
-    ShowWindow(main_window.win32_main_window, n_cmd_show);
+    // Window is shown, so we can get the pre-surface information and combine it with the newly formed window
+    // surface to get the surface information we need. From there, we will have ALL information we need to allow
+    // the user to create a vulkan instance whenever they want to
+    if (pre_surface_thread.joinable()) pre_surface_thread.join();
+
+    // Keep a secondary window around for testing
+    auto sub_window = Atelier::Window();
+    Atelier::Window::create_sub_window(&sub_window, instance_handle);
+    ShowWindow(sub_window.window_handle, n_cmd_show);
 
     // Next enter into the windowing loop. In order to stop us from blocking the main thread, I like to do the peak
     // message instead
@@ -50,19 +52,6 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
     }
 
     MessageBoxA(nullptr, "Okay so far\n", "Atelier", MB_OK);
-}
 
-LRESULT atelier_proc_function(HWND window_handle, UINT msg_id, WPARAM w_param, LPARAM l_param)
-{
-    switch (msg_id) {
-        // This is our MAIN window, and so when the user closes it, we should tell all other objects that it's time
-        // to exit
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
-        default:
-            break;
-    }
-
-    return DefWindowProcW(window_handle, msg_id, w_param, l_param);
+    return 0;
 }

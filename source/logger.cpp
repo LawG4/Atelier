@@ -38,8 +38,9 @@ void Atelier::Log::info(const char* const msg, ...)
     auto fmt = fmt_va(msg, args);
     va_end(args);
 
-    fmt = "INFO: " + fmt + "\n";
+    fmt = "INFO: " + fmt;
     unformatted(fmt.c_str());
+    unformatted("\n");
 }
 
 void Atelier::Log::warn(const char* const msg, ...)
@@ -51,6 +52,7 @@ void Atelier::Log::warn(const char* const msg, ...)
 
     fmt = "WARN: " + fmt + "\n";
     unformatted(fmt.c_str());
+    unformatted("\n");
 }
 
 void Atelier::Log::error(const char* const msg, ...)
@@ -62,4 +64,5 @@ void Atelier::Log::error(const char* const msg, ...)
 
     fmt = "ERROR: " + fmt + "\n";
     unformatted(fmt.c_str());
+    unformatted("\n");
 }
