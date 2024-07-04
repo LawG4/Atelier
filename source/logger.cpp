@@ -1,5 +1,9 @@
+#include "atelier/atelier_base.h"
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 #include <varargs.h>
-#include "atelier/atelier.h"
+#include <string>
 
 static std::string fmt_va(const char* const msg, va_list va_args)
 {
@@ -27,7 +31,12 @@ void Atelier::Log::init()
 #endif
 }
 
-void Atelier::Log::shutdown() {}
+void Atelier::Log::shutdown()
+{
+#ifndef NDEBUG
+    system("pause");
+#endif
+}
 
 void Atelier::Log::unformatted(const char* const msg) { printf("%s", msg); }
 

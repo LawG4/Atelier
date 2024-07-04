@@ -16,9 +16,12 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
         return -1;
     }
 
-    // Get the vulkan information as much as we can in anther thread while we initialize the win32 window
-    auto vk_pre_surface = Atelier::VkPreSurfaceInfo();
-    auto pre_surface_thread = Atelier::VkPreSurfaceInfo::kick_worker(vk_pre_surface);
+    // Fetch as much vulkan information as we can pre window being shown
+    auto complete_vk = Atelier::VkCompletedInstance();
+    if (complete_vk.pre_surface_default_init() != Atelier::k_success) {
+        Atelier::Log::error("Failed to do vulkan pre surface startup");
+        return -1;
+    }
 
     // A place to keep all of the information in the main thread
     auto main_window = Atelier::Window();
@@ -28,19 +31,15 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
     }
     ShowWindow(main_window.window_handle, n_cmd_show);
 
-    // Window is shown, so we can get the pre-surface information and combine it with the newly formed window
-    // surface to get the surface information we need. From there, we will have ALL information we need to allow
-    // the user to create a vulkan instance whenever they want to
-    if (pre_surface_thread.joinable()) pre_surface_thread.join();
-
     // Keep a secondary window around for testing
     auto sub_window = Atelier::Window();
     Atelier::Window::create_sub_window(&sub_window, instance_handle);
-    ShowWindow(sub_window.window_handle, n_cmd_show);
+    // ShowWindow(sub_window.window_handle, n_cmd_show);
 
     // Next enter into the windowing loop. In order to stop us from blocking the main thread, I like to do the peak
-    // message instead
+    // message instead. We don't listen to a specific window handle so that we can get all the messages in one go
     while (main_window.should_continue) {
+        // Look into that message which might have happened or not
         MSG out_msg;
         BOOL peak_res = PeekMessageW(&out_msg, nullptr, 0, 0, PM_REMOVE);
         if (peak_res == 0) continue;  // No messages available
@@ -51,7 +50,9 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
         DispatchMessageW(&out_msg);
     }
 
-    MessageBoxA(nullptr, "Okay so far\n", "Atelier", MB_OK);
+    // Shut down everything
+    complete_vk.shutdown();
+    Atelier::Log::shutdown();
 
     return 0;
 }
