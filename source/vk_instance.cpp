@@ -17,7 +17,7 @@ result VkCompletedInstance::init_from_mutable_instance(const VkMutableInstanceCr
 
     // Yay we can store the vulkan devices
     m_handle = instance;
-    if (messenger != VK_NULL_HANDLE) m_messengers.push_back(messenger);
+    if (messenger != VK_NULL_HANDLE) m_messenger = messenger;
 
     // Copy any enabled layers and extensions
     m_enabled_extensions.reserve(info.ext_selected.size());
@@ -29,27 +29,53 @@ result VkCompletedInstance::init_from_mutable_instance(const VkMutableInstanceCr
         m_enabled_layers.push_back(std::string(s));
     }
 
+    // Fetch all of the physical devices available to us
+    uint32_t physical_device_count = 0;
+    if (vkEnumeratePhysicalDevices(instance, &physical_device_count, nullptr) != VK_SUCCESS) {
+        Log::error("Failed to enumerate physical devices");
+        return -3;
+    }
+    if (physical_device_count == 0) {
+        Log::error("Failed to find any physical devices. You might not have Vulkan");
+        return -4;
+    }
+    std::vector<VkPhysicalDevice> devs(physical_device_count, VK_NULL_HANDLE);
+    if (vkEnumeratePhysicalDevices(instance, &physical_device_count, devs.data()) != VK_SUCCESS) {
+        Log::error("Failed to retrieve physical devices");
+        return -5;
+    }
+
+    m_physical_devices.reserve(devs.size());
+    for (VkPhysicalDevice dev : devs) {
+        auto& p_dev = m_physical_devices.emplace_back();
+        p_dev.init_from_instance(instance, dev);
+    }
+
     return k_success;
 }
 
-void Atelier::VkCompletedInstance::shutdown()
+void Atelier::VkCompletedInstance::shutdown(VkCompletedState& vk)
 {
-    // Shutdown all of the devices
-    for (auto& dev : m_physical_devices) {
-        dev.shutdown(m_handle);
+    // Shutdown all of the logical devices which make use of this instance, and then also do the same for the
+    // physical devices
+    for (auto& dev : vk.m_devices) {
+        if (dev.m_parent == this) {
+            dev.shutdown(vk);
+        }
+    }
+
+    // Destroy any surfaces we depend on in this instance
+    for (auto& surf : vk.m_surfaces) {
+        if (surf.m_parent == this) surf.shutdown(vk);
     }
 
     // If we have a debug messenger, we need to destroy them
-    if (m_messengers.size() > 0) {
-        auto destroy_msg =
-          (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_handle, "vkDestroyDebugUtilsMessengerEXT");
-        if (destroy_msg != nullptr) {
-            for (auto& msg : m_messengers) {
-                destroy_msg(m_handle, msg, nullptr);
-            }
-        }
-        m_messengers.clear();
+    PFN_vkDestroyDebugUtilsMessengerEXT destroy_msg =
+      (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_handle, "vkDestroyDebugUtilsMessengerEXT");
+    if (m_messenger != VK_NULL_HANDLE && destroy_msg != nullptr) {
+        destroy_msg(m_handle, m_messenger, nullptr);
     }
+    m_messenger = VK_NULL_HANDLE;
 
     // Free the handle
     if (m_handle != VK_NULL_HANDLE) {

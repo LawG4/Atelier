@@ -1,5 +1,16 @@
-#include "atelier/atelier_vk.h"
+#include "atelier/atelier_vk_completed.h"
+#include "atelier/atelier_vk_mutable.h"
 using namespace Atelier;
+
+result VkCompletedPhysicalDevice::init_from_instance(VkInstance instance, VkPhysicalDevice device)
+{
+    // TODO: There's still some stuff we can do with getting physical device props_2 and using the instance to
+    // check if available
+    (void)instance;
+    m_handle = device;
+    vkGetPhysicalDeviceProperties(device, &m_device_properties);
+    return k_success;
+}
 
 result VkCompletedPhysicalDevice::init_from_mutable_device(const VkMutableDeviceCreateInfo& info)
 {
@@ -17,23 +28,19 @@ result VkCompletedDevice::init_from_mutable_device(const VkMutableDeviceCreateIn
         return -1;
     }
 
-    // Fetch the device queues
-    std::vector<VkQueue> queues;
-    if (info.fetch_queues(queues, device) != k_success) {
-        Log::error("Failed to extract the queues");
-        return -2;
-    }
+    // We track the queues for each family as a group. The user can in theory create multiple queues targeting the
+    // same family
+    m_queues.reserve(info.queue_infos.size());
+    for (const auto& qi : info.queue_infos) {
+        // Copy the info about the specific queue family
+        auto& out_queue = m_queues[qi.queueFamilyIndex];
+        out_queue.family_indx = qi.queueFamilyIndex;
+        out_queue.props = info.queue_props[qi.queueFamilyIndex];
 
-    // Pop these into the completed queue. Remember we can have multiple queues per queue info
-    m_queues.reserve(queues.size());
-    uint32_t queue_indx = 0;
-    for (size_t qi = 0; qi < info.queue_infos.size(); qi++) {
-        for (size_t i = 0; i < info.queue_infos[qi].queueCount; i++) {
-            auto& out_queue = m_queues.emplace_back();
-            out_queue.handle = queues[queue_indx++];
-            out_queue.family_indx = info.queue_infos[qi].queueFamilyIndex;
-            out_queue.props = info.queue_props[out_queue.family_indx];
-            out_queue.present_support = false;
+        // Fetch all of the handles that the user specified for creation
+        out_queue.m_handle.resize(qi.queueCount, VK_NULL_HANDLE);
+        for (size_t i = 0; i < qi.queueCount; i++) {
+            vkGetDeviceQueue(device, qi.queueFamilyIndex, i, &out_queue.m_handle[i]);
         }
     }
 
@@ -46,18 +53,28 @@ result VkCompletedDevice::init_from_mutable_device(const VkMutableDeviceCreateIn
     return k_success;
 }
 
-void Atelier::VkCompletedPhysicalDevice::shutdown(VkInstance instance_handle)
+void Atelier::VkCompletedPhysicalDevice::shutdown(VkCompletedState& vk)
 {
-    for (auto& logical : m_devices) {
-        logical.shutdown(instance_handle);
+    // In most cleanup the logical devices are cleared up separately but just in
+    for (auto& logical : vk.m_devices) {
+        logical.shutdown(vk);
     }
+    m_handle = VK_NULL_HANDLE;
 }
 
-void Atelier::VkCompletedDevice::shutdown(VkInstance instance_handle)
+void Atelier::VkCompletedDevice::shutdown(VkCompletedState& vk)
 {
     // Wait for the device to finalized
     if (m_handle == VK_NULL_HANDLE) return;
     vkDeviceWaitIdle(m_handle);
+
+    // We need to delete all derived device objects
+    for (auto& swapchain : vk.m_swapchains) {
+        if (swapchain.m_info.m_parent_device == this) {
+            swapchain.shutdown(vk);
+        }
+    }
+
     vkDestroyDevice(m_handle, nullptr);
     m_handle = VK_NULL_HANDLE;
 }
@@ -116,26 +133,6 @@ result VkMutableDeviceCreateInfo::create_default(VkMutableDeviceCreateInfo& dev,
         queue.queueFamilyIndex = i;
         queue.queueCount = 1;
         queue.pNext = nullptr;
-    }
-
-    return k_success;
-}
-
-result VkMutableDeviceCreateInfo::fetch_queues(std::vector<VkQueue>& queues, VkDevice device) const
-{
-    // Count how many queues we have
-    uint32_t queue_count = 0;
-    for (const auto& queue_inf : queue_infos) {
-        queue_count += queue_inf.queueCount;
-    }
-
-    // Fetch all of the queues, we could have multiple of them per family index
-    uint32_t queue_indx = 0;
-    queues.resize(queue_count, VK_NULL_HANDLE);
-    for (const auto& queue_inf : queue_infos) {
-        for (uint32_t i = 0; i < queue_inf.queueCount; i++) {
-            vkGetDeviceQueue(device, queue_inf.queueFamilyIndex, i, &queues[queue_indx++]);
-        }
     }
 
     return k_success;

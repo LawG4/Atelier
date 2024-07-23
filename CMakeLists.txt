@@ -10,12 +10,15 @@ endif()
 add_executable(atelier WIN32
 	include/atelier/atelier.h
 	include/atelier/atelier_base.h
-	include/atelier/atelier_vk.h
+	include/atelier/atelier_vk_completed.h
+	include/atelier/atelier_vk_mutable.h
 	source/_application_wwinmain.cpp
 	source/logger.cpp
+	source/vk_complete_state.cpp
 	source/vk_device.cpp
 	source/vk_instance.cpp
 	source/vk_surface.cpp
+	source/vk_swapchain.cpp
 	source/win32_window_class.cpp)
 
 target_include_directories(atelier PRIVATE 

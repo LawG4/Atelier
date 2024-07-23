@@ -1,6 +1,7 @@
 /**
  * @brief We split Vulkan objects. We make a mutable version of the create infos for user editing of the values.
- * Then we have the completed object which we use to place into global state tracking
+ * Then we have the completed object which we use to place into global state tracking.
+ *
  */
 #pragma once
 #include "atelier_base.h"
@@ -10,10 +11,6 @@
 #include <vector>
 namespace Atelier
 {
-
-//
-// Creation helpers
-//
 
 /**
  * @brief The VkInstanceCreateInfo structure has it's array members being accessed via a const qualifier, which
@@ -63,61 +60,6 @@ struct VkMutableDeviceCreateInfo {
 
     static result create_default(VkMutableDeviceCreateInfo& dev, VkInstance instance, VkPhysicalDevice physical);
     result create_device(VkDevice& Device, const VkAllocationCallbacks* alloc = nullptr) const;
-    result fetch_queues(std::vector<VkQueue>& queues, VkDevice device) const;
-};
-
-//
-// Completed Tiered Handlers
-//
-
-struct VkCompletedInstance {
-    VkCompletedInstance() = default;
-    VkInstance m_handle = VK_NULL_HANDLE;
-    std::vector<std::string> m_enabled_extensions;
-    std::vector<std::string> m_enabled_layers;
-    std::vector<VkDebugUtilsMessengerEXT> m_messengers;
-    std::vector<struct VkCompletedPhysicalDevice> m_physical_devices;
-
-    // Shuts down all of the child vulkan objects in order
-    void shutdown();
-
-    // Attempts to only initialize the instance put none of the child vulkan devices
-    result init_from_mutable_instance(const VkMutableInstanceCreateInfo& info);
-
-    // Attempts to create the default of all handles available in the time before a surface is shown to the user
-    result pre_surface_default_init();
-};
-
-struct VkCompletedPhysicalDevice {
-    VkCompletedPhysicalDevice() = default;
-    VkPhysicalDevice m_handle = VK_NULL_HANDLE;
-    VkPhysicalDeviceProperties m_device_properties = {};
-    std::vector<struct VkCompletedDevice> m_devices;
-
-    // Shuts down all of the child logical devices and clears properties
-    void shutdown(VkInstance instance_handle);
-
-    // Attempts to initialize the physical device, but not the logical device
-    result init_from_mutable_device(const VkMutableDeviceCreateInfo& info);
-};
-
-struct VkCompletedDevice {
-    VkDevice m_handle = VK_NULL_HANDLE;
-    std::vector<std::string> m_enabled_extensions;
-    std::vector<struct VkCompletedQueue> m_queues;
-
-    // Shuts down all of the child vulkan objects in order
-    void shutdown(VkInstance instance_handle);
-
-    // Attempts to initialize the logical device from the provided info
-    result init_from_mutable_device(const VkMutableDeviceCreateInfo& info);
-};
-
-struct VkCompletedQueue {
-    VkQueue handle = VK_NULL_HANDLE;
-    uint32_t family_indx = 0;
-    VkQueueFamilyProperties props = {};
-    bool present_support = false;
 };
 
 }  // namespace Atelier

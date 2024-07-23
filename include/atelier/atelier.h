@@ -1,6 +1,7 @@
 #pragma once
 #include "atelier_base.h"
-#include "atelier_vk.h"
+#include "atelier_vk_completed.h"
+#include "atelier_vk_mutable.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <mutex>
@@ -34,7 +35,7 @@ struct Window {
 };
 
 struct StateSingleton {
-    std::vector<VkCompletedInstance> vk;
+    VkCompletedState vk;
     uint32_t selected_device;
     uint32_t selected_present_queue;
     uint32_t selected_graphics_queue;

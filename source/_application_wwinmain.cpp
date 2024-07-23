@@ -17,7 +17,7 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
     }
 
     // Fetch as much vulkan information as we can pre window being shown
-    auto complete_vk = Atelier::VkCompletedInstance();
+    auto complete_vk = Atelier::VkCompletedState();
     if (complete_vk.pre_surface_default_init() != Atelier::k_success) {
         Atelier::Log::error("Failed to do vulkan pre surface startup");
         return -1;
@@ -29,12 +29,16 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
         Atelier::Log::error("Failed when constructing main window");
         return -1;
     }
-    ShowWindow(main_window.window_handle, n_cmd_show);
 
-    // Keep a secondary window around for testing
-    auto sub_window = Atelier::Window();
-    Atelier::Window::create_sub_window(&sub_window, instance_handle);
-    // ShowWindow(sub_window.window_handle, n_cmd_show);
+    // Show the window to the screen, while the animation is playing we can append the additional vulkan stuff
+    ShowWindow(main_window.window_handle, n_cmd_show);
+    auto& surface = complete_vk.m_surfaces.emplace_back();
+    surface.init_from_win32_handles(complete_vk.m_instances[0], instance_handle, main_window.window_handle);
+
+    auto& swap = complete_vk.m_swapchains.emplace_back();
+    auto swap_info = Atelier::VkCompletedSwapchain::CreateInfo();
+    swap_info.create_default_from_win32(complete_vk.m_devices[0], surface);
+    swap.init_from_create_info(swap_info);
 
     // Next enter into the windowing loop. In order to stop us from blocking the main thread, I like to do the peak
     // message instead. We don't listen to a specific window handle so that we can get all the messages in one go
