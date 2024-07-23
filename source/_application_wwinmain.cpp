@@ -35,9 +35,12 @@ int wWinMain(_In_ HINSTANCE instance_handle, _In_opt_ HINSTANCE pre_instance, _I
     auto& surface = complete_vk.m_surfaces.emplace_back();
     surface.init_from_win32_handles(complete_vk.m_instances[0], instance_handle, main_window.window_handle);
 
-    auto& swap = complete_vk.m_swapchains.emplace_back();
+    // For now just select the first device we find
+    auto& selected_device = complete_vk.m_devices[0];
+
+    auto& swap = selected_device.m_swaps.emplace_back();
     auto swap_info = Atelier::VkCompletedSwapchain::CreateInfo();
-    swap_info.create_default_from_win32(complete_vk.m_devices[0], surface);
+    swap_info.create_default_from_win32(selected_device, surface);
     swap.init_from_create_info(swap_info);
 
     // Next enter into the windowing loop. In order to stop us from blocking the main thread, I like to do the peak

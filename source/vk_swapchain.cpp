@@ -167,7 +167,7 @@ void VkCompletedSwapchain::shutdown(VkCompletedState& vk)
 
     for (auto& view : m_view_handles) {
         vkDestroyImageView(dev, view, nullptr);
-        view = VK_NULL_HANDLE;
+        view = VK_NULL_HANDLE; 
     }
 
     vkDestroySwapchainKHR(dev, m_handle, nullptr);

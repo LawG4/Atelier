@@ -28,8 +28,9 @@ result VkCompletedWin32Surface::init_from_win32_handles(VkCompletedInstance& ins
 void VkCompletedWin32Surface::shutdown(VkCompletedState& vk)
 {
     // Shutdown any derived surfaces
-    for (auto& swapchain : vk.m_swapchains) {
-        if (swapchain.m_info.m_parent_surface == this) swapchain.shutdown(vk);
+    for (auto& dev : vk.m_devices) {
+        for (auto& swap : dev.m_swaps)
+            if (swap.m_info.m_parent_surface == this) swap.shutdown(vk);
     }
 
     // TODO inform the parent win32 object that the surface is being detached

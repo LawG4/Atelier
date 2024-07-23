@@ -69,10 +69,8 @@ void Atelier::VkCompletedDevice::shutdown(VkCompletedState& vk)
     vkDeviceWaitIdle(m_handle);
 
     // We need to delete all derived device objects
-    for (auto& swapchain : vk.m_swapchains) {
-        if (swapchain.m_info.m_parent_device == this) {
-            swapchain.shutdown(vk);
-        }
+    for (auto& swapchain : m_swaps) {
+        swapchain.shutdown(vk);
     }
 
     vkDestroyDevice(m_handle, nullptr);

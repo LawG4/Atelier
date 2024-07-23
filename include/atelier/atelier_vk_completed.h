@@ -20,7 +20,6 @@ struct VkCompletedState {
     std::vector<struct VkCompletedInstance> m_instances;
     std::vector<struct VkCompletedDevice> m_devices;
     std::vector<struct VkCompletedWin32Surface> m_surfaces;
-    std::vector<struct VkCompletedSwapchain> m_swapchains;
 
     // Shuts down everything in the completed vulkan state
     result shutdown();
@@ -67,6 +66,7 @@ struct VkCompletedDevice {
 
     std::vector<std::string> m_enabled_extensions;
     std::unordered_map<uint32_t, struct VkCompletedQueue> m_queues;
+    std::vector<struct VkCompletedSwapchain> m_swaps;
 
     // Shuts down all of the child vulkan objects in order
     void shutdown(VkCompletedState& vk);
