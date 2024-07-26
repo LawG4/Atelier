@@ -167,10 +167,37 @@ void VkCompletedSwapchain::shutdown(VkCompletedState& vk)
 
     for (auto& view : m_view_handles) {
         vkDestroyImageView(dev, view, nullptr);
-        view = VK_NULL_HANDLE; 
+        view = VK_NULL_HANDLE;
     }
 
     vkDestroySwapchainKHR(dev, m_handle, nullptr);
     m_handle = VK_NULL_HANDLE;
     m_info = VkCompletedSwapchain::CreateInfo();
+}
+
+int32_t VkCompletedSwapchain::select_preferred_gfx_family(QueueCriteria criteria)
+{
+    if (m_info.m_parent_device == nullptr) return -1;
+    if (criteria != QueueCriteria::k_none && criteria != QueueCriteria::k_gfx_present_overlap &&
+        criteria != QueueCriteria::k_gfx_present_no_overlap) {
+        // Can't use this selection criteria
+        Log::error("Invalid selection criteria passed");
+        return -2;
+    }
+
+    const auto& present_qs = m_info.m_selected_queue_indicies;
+    const auto* dev = m_info.m_parent_device;
+    for (const auto& q : dev->m_queues) {
+        // We are only interested in graphics queues
+        if ((q.second.props.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0) continue;
+        if (criteria == QueueCriteria::k_none) return q.first;  // No criteria take first gfx queue
+
+        // Was this swapchain built with the ability to accept work from this queue? In other words is this queue
+        // capable of presenting to this swapchain
+        bool supports_present = std::find(present_qs.begin(), present_qs.end(), q.first) != present_qs.end();
+        if (supports_present && (criteria == QueueCriteria::k_gfx_present_overlap)) return q.first;
+        if (!supports_present && (criteria == QueueCriteria::k_gfx_present_no_overlap)) return q.first;
+    }
+
+    return -3;  // Made it here without finding one, so exit
 }

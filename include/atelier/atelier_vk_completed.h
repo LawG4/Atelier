@@ -75,6 +75,17 @@ struct VkCompletedDevice {
     result init_from_mutable_device(const struct VkMutableDeviceCreateInfo& info);
 };
 
+/**
+ * @brief Defines the criteria used when selecting a queue family index for some form of work
+ */
+enum class QueueCriteria : uint32_t {
+    k_none,                    // No criteria, just choose the first one
+    k_gfx_present_overlap,     // Select graphics queue which must overlap with present
+    k_gfx_present_no_overlap,  // Select graphics queue which must NOT overlap with present
+    k_present_gfx_no_overlap,  // Select present queue which must NOT overlap with graphics
+    k_present_gfx_overlap,     // Select present queue which must overlap with graphics
+};
+
 struct VkCompletedQueue {
     VkCompletedQueue() = default;
     std::vector<VkQueue> m_handle;
@@ -133,7 +144,12 @@ struct VkCompletedSwapchain {
 
     void shutdown(VkCompletedState& vk);
 
+    // Attempt to initialize the swapchain from required information
     result init_from_create_info(CreateInfo& info);
+
+    // The graphics queue you select might depend on the availability of present queues enabled in your swapchain.
+    // returns negative if the queue index matching the criteria couldn't be found
+    int32_t select_preferred_gfx_family(QueueCriteria criteria);
 };
 
 }  // namespace Atelier
